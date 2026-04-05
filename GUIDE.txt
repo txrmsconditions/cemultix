@@ -1,0 +1,143 @@
+# Cémantix Multi — Guide de déploiement
+# Commandes exactes, dans l'ordre, local d'abord
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 1 — PRÉPARER LES DONNÉES (pipeline Python)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Depuis le dossier pipeline/ :
+
+1. Installe les dépendances Python :
+   pip install numpy tqdm
+
+2. Télécharge le modèle FastText FR (.vec.gz, ~4 Go) :
+   https://dl.fbaipublicfiles.com/fasttext/vectors-crawl/cc.fr.300.vec.gz
+   → Décompresse avec 7-Zip pour obtenir cc.fr.300.vec
+
+3. Lance le pipeline (première fois ~10-15 min, crée un cache ensuite) :
+   python pipeline.py --model cc.fr.300.vec --wordlist wordlist.txt --vocab-size 200000
+
+   → Crée kv_data/wordlist.json et kv_data/bulk/bulk_0.json, bulk_1.json…
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 2 — CRÉER LES RESSOURCES CLOUDFLARE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Depuis le dossier worker/ :
+
+4. Installe Wrangler :
+   npm install -g wrangler
+
+5. Connecte ton compte Cloudflare :
+   wrangler login
+
+6. Crée le namespace KV :
+   wrangler kv namespace create CEMANTIX_KV
+   → Note l'id retourné, ex : abc123...
+
+7. Crée la base D1 :
+   wrangler d1 create cemantix-db
+   → Note le database_id retourné, ex : xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
+
+8. Ouvre wrangler.toml et remplace :
+   - REMPLACER_KV_ID  → l'id du namespace KV (étape 6)
+   - REMPLACER_D1_ID  → le database_id D1 (étape 7)
+   (preview_id = même valeur que id)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 3 — TESTER EN LOCAL
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Toutes ces commandes depuis le dossier worker/ :
+
+9. Crée les tables D1 en local :
+   wrangler d1 execute cemantix-db --local --file=schema.sql
+
+10. Injecte la wordlist en local :
+    wrangler kv key put --local --binding=KV "wordlist" --path="..\pipeline\kv_data\wordlist.json"
+
+11. Injecte les voisins en local (PowerShell) :
+    $id = (Get-Content wrangler.toml | Select-String 'id = "').ToString().Trim() -replace '.*"(.*)".*','$1'
+    $dir = "..\pipeline\kv_data\bulk"
+    Get-ChildItem $dir -Filter "bulk_*.json" | Sort-Object Name | ForEach-Object {
+        Write-Host "Local bulk $($_.Name)..."
+        wrangler kv bulk put --local --binding=KV $_.FullName
+    }
+
+12. Injecte un mot du jour de test en local (PowerShell) :
+    $today = (Get-Date -Format "yyyy-MM-dd")
+    $data = '{"word":"maison","date":"' + $today + '","number":1}'
+    wrangler kv key put --local --binding=KV "daily:$today" $data
+
+13. Lance le Worker en local (laisse ce terminal ouvert) :
+    wrangler dev
+
+    → Le Worker tourne sur http://localhost:8787
+    → Vérifie : http://localhost:8787/health  (doit retourner {"ok":true})
+    → Vérifie : http://localhost:8787/api/daily  (doit retourner le mot du jour)
+
+14. Ouvre le frontend dans un SECOND terminal :
+    npx serve ..\frontend -p 3000
+
+    → Ouvre http://localhost:3000 dans le navigateur
+    → Teste : créer une salle, deviner un mot
+    → Si "maison" donne un rang → tout fonctionne !
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PHASE 4 — DÉPLOYER SUR CLOUDFLARE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Depuis le dossier worker/ :
+
+15. Crée les tables D1 en remote :
+    wrangler d1 execute cemantix-db --remote --file=schema.sql
+
+16. Upload la wordlist en remote :
+    wrangler kv key put --remote --binding=KV "wordlist" --path="..\pipeline\kv_data\wordlist.json"
+
+17. Upload les voisins en remote (bulk, ~9 fichiers, quelques minutes) :
+    $KV_ID = "TON_KV_ID_ICI"
+    $dir = "..\pipeline\kv_data\bulk"
+    Get-ChildItem $dir -Filter "bulk_*.json" | Sort-Object Name | ForEach-Object {
+        Write-Host "Upload $($_.Name)..."
+        wrangler kv bulk put --remote --namespace-id="$KV_ID" $_.FullName
+    }
+
+18. Déploie le Worker :
+    wrangler deploy
+    → Note l'URL affichée, ex : https://cemantix-api.toncompte.workers.dev
+
+19. Ouvre frontend/index.html et remplace la ligne :
+    : 'https://REMPLACER_APRES_WRANGLER_DEPLOY.workers.dev'
+    par l'URL de l'étape 18, ex :
+    : 'https://cemantix-api.toncompte.workers.dev'
+
+20. Déploie le frontend sur Cloudflare Pages :
+    wrangler pages deploy ..\frontend --project-name cemantix-multi
+    → Ton jeu est en ligne sur https://cemantix-multi.pages.dev
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+PROBLÈMES COURANTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+"Erreur réseau" dans le jeu
+→ Le Worker n'est pas lancé (wrangler dev en local)
+→ Ou l'URL dans index.html est mauvaise (en prod)
+
+"Mot non trouvé" pour tous les mots
+→ Les voisins ne sont pas dans KV
+→ Vérifie : wrangler kv key get --local --binding=KV "neighbors:maison"
+
+"Wordlist vide"
+→ L'étape 10 (injection wordlist) n'a pas été faite
+→ Relance l'étape 10
+
+Limite KV dépassée (code 10048)
+→ Tu as dépassé 1000 écritures/jour (plan gratuit)
+→ Attends le lendemain et reprends l'upload
+
+"CPU limits not supported on Free plan"
+→ Supprime la section [limits] dans wrangler.toml
+
+"new_classes" error
+→ Utilise new_sqlite_classes dans wrangler.toml (déjà corrigé dans ce fichier)

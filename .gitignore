@@ -1,0 +1,8 @@
+*.bin
+*.bin.kv
+*.npy
+*.words.json
+kv_data*/
+.wrangler/
+__pycache__/
+node_modules/

@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Cémultix</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,600;1,300&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="icon" type="image/x-icon" href="favicon.png">
+<style>
+:root{
+  --bg:#0d0d0d;--sf:#161616;--sf2:#1f1f1f;--bd:#2a2a2a;
+  --tx:#e8e8e0;--mt:#666;--dm:#444;
+  --gold:#f5c842;--hot:#e85d30;--warm:#f0963a;--mild:#e8d44d;
+  --cool:#7ec8e3;--cold:#4a7fc1;--ok:#4caf7d;
+  --r:8px;--mono:'IBM Plex Mono',monospace;--serif:'Fraunces',serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{
+  height:100%;overflow:hidden;
+  background:var(--bg);color:var(--tx);font-family:var(--mono);
+}
+/* On mobile, allow scroll */
+@media(max-width:720px){html,body{overflow:auto}}
+
+/* ── LAYOUT ── */
+body{display:flex;flex-direction:column}
+header{
+  flex-shrink:0;border-bottom:1px solid var(--bd);
+  padding:12px 20px;display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg);z-index:100;
+}
+.logo{font-family:var(--serif);font-size:1.4rem;font-weight:600;letter-spacing:-.5px;cursor:pointer;user-select:none}
+.logo em{font-style:italic;color:var(--gold);font-weight:300}
+.hdr-r{display:flex;gap:8px;align-items:center}
+.badge{display:inline-flex;align-items:center;gap:5px;background:var(--sf);border:1px solid var(--bd);border-radius:20px;padding:3px 10px;font-size:.7rem;color:var(--mt)}
+.dot{width:6px;height:6px;border-radius:50%;background:var(--ok);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.3}}
+.hbtn{background:none;border:1px solid var(--bd);border-radius:50%;width:26px;height:26px;color:var(--mt);cursor:pointer;font-size:.8rem;transition:all .15s;display:flex;align-items:center;justify-content:center}
+.hbtn:hover{border-color:var(--dm);color:var(--tx)}
+
+/* ── MAIN AREA (fills between header and footer) ── */
+#app{flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0}
+@media(max-width:720px){#app{overflow:auto}}
+
+footer{
+  flex-shrink:0;border-top:1px solid var(--bd);
+  padding:8px 20px;display:flex;align-items:center;justify-content:space-between;
+  background:var(--bg);font-size:.62rem;color:var(--dm);
+}
+@media(max-width:720px){
+  footer{position:static;margin-top:auto}
+  body{height:auto;min-height:100%}
+}
+.footer-left{display:flex;align-items:center;gap:12px}
+.footer-right{display:flex;align-items:center;gap:12px}
+.footer-link{color:var(--tx);text-decoration:none;transition:color .15s}
+.footer-link:hover{color:var(--gold)}
+.footer-sep{opacity:.3}
+
+/* ── LOBBY ── */
+#lobby-wrap{flex:1;display:flex;justify-content:center;align-items:center;padding:clamp(20px,4vh,44px) 16px;overflow:auto}
+#lobby{width:100%;max-width:980px;display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:min(78vh,760px)}
+.l-title{font-family:var(--serif);font-size:2.4rem;font-weight:300;letter-spacing:-1.5px;margin-bottom:2px;text-align:center}
+.l-title em{font-style:italic;color:var(--gold)}
+.l-sub{font-size:.72rem;color:var(--mt);margin-bottom:20px;letter-spacing:.05em;text-align:center}
+.cards{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;width:100%;margin-bottom:16px}
+.card{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:14px 10px;cursor:pointer;transition:border-color .15s,background .15s;text-align:center}
+.card:hover,.card.on{border-color:var(--gold);background:#1a1a14}
+.c-icon{font-size:1.3rem;margin-bottom:6px}
+.c-title{font-size:.76rem;font-weight:500;margin-bottom:3px}
+.c-desc{font-size:.64rem;color:var(--mt);line-height:1.5}
+.lform{display:flex;flex-direction:column;gap:8px;width:100%;max-width:380px;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:16px}
+.lform h3{font-size:.76rem;font-weight:500;color:var(--mt);margin-bottom:2px}
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:.65rem;color:var(--mt)}
+.fld input,.fld select{background:var(--bg);border:1px solid var(--bd);border-radius:5px;padding:8px 10px;color:var(--tx);font-family:var(--mono);font-size:.78rem;outline:none;transition:border-color .15s}
+.fld input:focus,.fld select:focus{border-color:var(--gold)}
+.fld select option{background:var(--bg)}
+.toggle-row{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:8px 10px;background:var(--bg);border:1px solid var(--bd);border-radius:5px}
+.toggle-row span{font-size:.78rem;color:var(--tx);line-height:1.35}
+.toggle-row input{
+  appearance:none;-webkit-appearance:none;
+  width:34px;height:20px;cursor:pointer;flex-shrink:0;
+  background:#2a2a2a;border:1px solid #3a3a3a;border-radius:999px;
+  position:relative;transition:background .18s,border-color .18s;
+}
+.toggle-row input::before{
+  content:'';position:absolute;top:2px;left:2px;
+  width:14px;height:14px;border-radius:50%;
+  background:#bdbdbd;transition:transform .18s,background .18s;
+}
+.toggle-row input:checked{background:var(--gold);border-color:var(--gold)}
+.toggle-row input:checked::before{transform:translateX(14px);background:#0d0d0d}
+.btn{background:var(--gold);border:none;border-radius:5px;padding:9px 16px;color:#0d0d0d;font-family:var(--mono);font-size:.78rem;font-weight:500;cursor:pointer;transition:opacity .15s;width:100%}
+.btn:hover{opacity:.85}.btn:disabled{opacity:.4;cursor:default}
+.btn2{background:transparent;color:var(--mt);border:1px solid var(--bd);border-radius:5px;padding:8px 16px;font-family:var(--mono);font-size:.78rem;cursor:pointer;transition:all .15s;width:100%}
+.btn2:hover{border-color:var(--dm);color:var(--tx)}
+.dvd{display:flex;align-items:center;gap:10px;font-size:.63rem;color:var(--dm)}
+.dvd::before,.dvd::after{content:'';flex:1;height:1px;background:var(--bd)}
+
+#multi-panel{display:flex;flex-direction:column;gap:8px;width:100%;max-width:420px;align-items:center;margin-inline:auto}
+.mp-divider{display:none;color:#8f8f8f;font-size:.72rem;line-height:1;user-select:none}
+
+@media(min-width:721px){
+  #multi-panel{max-width:860px;flex-direction:row;align-items:center;gap:10px}
+  #multi-panel .lform{flex:1;min-width:0;max-width:none}
+  .mp-divider{display:flex;align-items:center;justify-content:center;min-width:26px;align-self:center}
+}
+
+@media(max-width:720px){
+  #lobby-wrap{align-items:flex-start;padding:16px 10px}
+  #lobby{max-width:560px;min-height:auto;justify-content:flex-start;padding-top:8px}
+  .mp-divider{display:flex;align-items:center;justify-content:center;min-height:16px}
+  .cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}
+  .cards .card{padding:10px 8px}
+  .cards .card[data-mode="solo"]{grid-column:1 / -1;justify-self:center;width:min(220px,100%)}
+}
+
+@media(max-width:380px){
+  .cards .card[data-mode="solo"]{width:100%}
+}
+
+/* ── GAME LAYOUT ── */
+#game-wrap{display:none;flex:1;min-height:0;justify-content:center}
+#game{
+  display:grid;grid-template-columns:1fr 255px;
+  max-width:1020px;width:100%;padding:0 16px;
+  min-height:0;overflow:hidden;
+}
+@media(max-width:720px){
+  #game{grid-template-columns:1fr;overflow:auto;padding:0 12px}
+  .sidebar{display:none!important}
+}
+main{
+  padding:20px 20px 20px 0;border-right:1px solid var(--bd);
+  display:flex;flex-direction:column;min-height:0;overflow:hidden;
+}
+@media(max-width:720px){main{border-right:none;padding:16px 0;overflow:auto}}
+
+.rbar{display:flex;align-items:center;justify-content:space-between;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:8px 13px;margin-bottom:14px;font-size:.7rem;color:var(--mt);flex-shrink:0}
+.rbar .hi{color:var(--gold);font-weight:500;letter-spacing:.05em}
+.rtag{background:var(--sf2);border:1px solid var(--bd);border-radius:20px;padding:2px 9px;font-size:.63rem;color:var(--mt)}
+.inv{color:var(--mt);cursor:pointer;transition:color .15s;user-select:none;font-size:.7rem}
+.inv:hover{color:var(--gold)}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px;flex-shrink:0}
+.stb{background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px}
+.stl{font-size:.58rem;color:var(--mt);margin-bottom:3px}
+.stv{font-size:1.1rem;font-weight:500}
+.ginput{display:flex;gap:7px;margin-bottom:6px;flex-shrink:0}
+.gi{flex:1;background:var(--sf);border:1px solid var(--bd);border-radius:var(--r);padding:10px 12px;color:var(--tx);font-family:var(--mono);font-size:.92rem;outline:none;transition:border-color .15s}
+.gi:focus{border-color:var(--gold)}.gi::placeholder{color:var(--dm)}.gi:disabled{opacity:.5}
+.gi.invalid{border-color:var(--hot);animation:shake .3s ease}
+@keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-4px)}75%{transform:translateX(4px)}}
+.gbtn{background:var(--gold);border:none;border-radius:var(--r);padding:10px 16px;color:#0d0d0d;font-family:var(--mono);font-size:.76rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity .15s}
+.gbtn:hover{opacity:.85}.gbtn:disabled{opacity:.4;cursor:default}
+.errmsg{font-size:.7rem;color:var(--hot);min-height:1em;margin-bottom:6px;flex-shrink:0}
+.slbl{font-size:.59rem;color:var(--dm);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;flex-shrink:0}
+
+/* Scrollable table area */
+.table-wrap{flex:1;overflow-y:auto;min-height:0}
+@media(max-width:720px){.table-wrap{overflow:visible}}
+table{width:100%;border-collapse:collapse;font-size:.76rem}
+thead th{
+  position:sticky;top:0;background:var(--bg);
+  text-align:left;font-size:.58rem;color:var(--mt);text-transform:uppercase;
+  letter-spacing:.1em;padding:0 7px 6px;font-weight:400;
+  border-bottom:1px solid var(--bd);z-index:1;
+}
+thead th:last-child{text-align:right}
+tbody tr{border-bottom:1px solid #1d1d1d;animation:rowIn .3s ease both}
+@keyframes rowIn{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+tbody tr:hover{background:var(--sf)}
+tbody tr.frow{background:#0d1f14}
+tbody td{padding:7px 7px}
+.rnum{color:var(--mt);font-size:.66rem}
+.wc{font-weight:500}.wc.other{color:var(--mt)}
+.who{font-size:.6rem;color:var(--dm);margin-left:5px}
+.pbar-w{display:flex;align-items:center;gap:6px;justify-content:flex-end}
+.pbar{height:4px;border-radius:2px;width:50px;background:var(--bd);overflow:hidden;flex-shrink:0}
+.pbar-f{height:100%;border-radius:2px;transition:width .4s ease}
+.pnum{text-align:right;font-size:.7rem;min-width:52px;font-variant-numeric:tabular-nums}
+.tlbl{font-size:.61rem;padding:2px 6px;border-radius:3px;font-weight:500;white-space:nowrap}
+.fbadge{display:inline-flex;align-items:center;gap:3px;background:#0d2e1a;border:1px solid #2a5e3a;border-radius:3px;font-size:.61rem;color:var(--ok);padding:2px 6px}
+
+/* ── SIDEBAR ── */
+.sidebar{padding:20px 0 20px 20px;display:flex;flex-direction:column;min-height:0;overflow:hidden}
+.ssec{margin-bottom:18px;min-height:0;display:flex;flex-direction:column}
+.ssec:last-child{flex:1;min-height:0}
+.stit{font-size:.59rem;color:var(--dm);text-transform:uppercase;letter-spacing:.12em;margin-bottom:8px;flex-shrink:0}
+.plist{display:flex;flex-direction:column;gap:6px}
+.pi{display:flex;align-items:center;gap:7px;font-size:.72rem}
+.av{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.6rem;font-weight:500;flex-shrink:0}
+.pm{flex:1;min-width:0}
+.pname{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.72rem}
+.pstat{font-size:.6rem;color:var(--mt)}
+.feed{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:4px;min-height:0}
+.fi{font-size:.67rem;color:var(--mt);padding:5px 7px;background:var(--sf);border-radius:5px;border-left:2px solid var(--bd);animation:feedIn .3s ease;flex-shrink:0}
+@keyframes feedIn{from{opacity:0;transform:translateX(5px)}}
+.fi.ff{border-left-color:var(--ok);background:#0d1f14}
+.fw{color:var(--tx);font-weight:500}
+
+/* ── OVERLAYS ── */
+.ov{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.85);align-items:center;justify-content:center;padding:16px}
+.ov.show{display:flex}
+.fmod{background:var(--sf);border:1px solid #2a5e3a;border-radius:12px;padding:30px 38px;text-align:center;max-width:380px;width:100%;animation:mIn .4s cubic-bezier(.18,.89,.32,1.2)}
+.hmod{background:var(--sf);border:1px solid var(--bd);border-radius:12px;padding:24px 28px;max-width:440px;width:100%;animation:mIn .3s ease;max-height:90vh;overflow-y:auto}
+@keyframes mIn{from{opacity:0;transform:scale(.9)}}
+.femo{font-size:2.4rem;margin-bottom:10px}
+.fword{font-family:var(--serif);font-size:1.9rem;font-weight:600;color:var(--gold);letter-spacing:-1px;margin-bottom:6px}
+.fsub{font-size:.72rem;color:var(--mt);margin-bottom:16px;line-height:1.6}
+.fstats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:20px}
+.fsb{background:var(--sf2);border-radius:6px;padding:10px}
+.fsbv{font-size:1.2rem;font-weight:500}
+.fsbl{font-size:.6rem;color:var(--mt);margin-top:2px}
+.fac{display:flex;gap:8px;justify-content:center;flex-wrap:wrap}
+.hmod h2{font-family:var(--serif);font-size:1.25rem;font-weight:600;margin-bottom:14px;color:var(--gold)}
+.hmod p{font-size:.72rem;color:var(--mt);line-height:1.75;margin-bottom:10px}
+.hmod p strong{color:var(--tx)}
+.tchips{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0}
+.tc{padding:3px 8px;border-radius:20px;font-size:.64rem;font-weight:500}
+.cbtn{background:none;border:1px solid var(--bd);border-radius:5px;padding:6px 13px;color:var(--mt);cursor:pointer;font-family:var(--mono);font-size:.72rem;margin-top:5px;transition:all .15s}
+.cbtn:hover{border-color:var(--dm);color:var(--tx)}
+
+/* ── TOAST ── */
+.toasts{position:fixed;bottom:52px;right:16px;z-index:300;display:flex;flex-direction:column;gap:5px;align-items:flex-end}
+@media(max-width:720px){.toasts{bottom:16px}}
+.toast{background:var(--sf2);border:1px solid var(--bd);border-radius:var(--r);padding:7px 12px;font-size:.72rem;color:var(--tx);animation:toIn .25s ease,toOut .25s ease 2.75s forwards;pointer-events:none;max-width:280px}
+@keyframes toIn{from{opacity:0;transform:translateY(6px)}}
+@keyframes toOut{to{opacity:0}}
+.toast.ok{border-color:#2a5e3a;color:var(--ok)}
+.toast.err{border-color:#5e2a2a;color:var(--hot)}
+
+/* scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:2px}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo" onclick="goHome()">Ce<em>multi</em>x</div>
+  <div class="hdr-r">
+    <div class="badge" id="obadge" style="display:none"><div class="dot"></div><span id="ocnt">0</span></div>
+    <button class="hbtn" onclick="showHelp()">?</button>
+  </div>
+</header>
+
+<div id="app">
+
+<!-- ══ LOBBY ══════════════════════════════════════════════════ -->
+<div id="lobby-wrap">
+<div id="lobby">
+  <p class="l-title">Trouvez le <em>mot secret</em></p>
+  <p class="l-sub">proximité sémantique · temps réel · multijoueur</p>
+  <div class="cards">
+    <div class="card on" data-mode="race" onclick="selMode(this)">
+      <div class="c-icon">⚡</div><div class="c-title">Course</div>
+      <div class="c-desc">Premier à trouver gagne.</div>
+    </div>
+    <div class="card" data-mode="coop" onclick="selMode(this)">
+      <div class="c-icon">🤝</div><div class="c-title">Coopératif</div>
+      <div class="c-desc">Propositions partagées entre tous.</div>
+    </div>
+    <div class="card" data-mode="solo" onclick="selMode(this)">
+      <div class="c-icon">🧘</div><div class="c-title">Solo</div>
+      <div class="c-desc">Un mot par jour, seul contre toi-même.</div>
+    </div>
+  </div>
+  <div id="solo-panel" style="display:none;width:100%;max-width:380px">
+    <div class="lform" style="text-align:center;gap:12px">
+      <p style="font-size:.78rem;color:var(--mt);line-height:1.7">Chaque jour, un nouveau mot secret.<br>Pas de compte, pas de pseudo — jouez directement.</p>
+      <button class="btn" onclick="startSolo()">Jouer →</button>
+    </div>
+  </div>
+
+  <div id="multi-panel">
+    <div class="lform">
+      <h3>Créer une partie</h3>
+      <div class="fld"><label>Votre pseudo</label>
+        <input id="uname" type="text" placeholder="tonPseudo67" maxlength="20" autocomplete="off"></div>
+      <div class="fld" id="maxp-f"><label>Joueurs max</label>
+        <select id="maxp">
+          <option value="2">2 joueurs</option><option value="4" selected>4 joueurs</option>
+          <option value="6">6 joueurs</option><option value="8">8 joueurs</option>
+        </select></div>
+      <div class="fld" id="show-others-wrap">
+        <label>Options course</label>
+        <label class="toggle-row" for="show-others-toggle">
+          <span>Voir les mots des autres joueurs</span>
+          <input id="show-others-toggle" type="checkbox">
+        </label>
+      </div>
+      <button class="btn" id="create-btn" onclick="createRoom()">Créer →</button>
+    </div>
+    <div class="mp-divider" aria-hidden="true">ou</div>
+    <div class="lform" id="join-section">
+      <h3>Rejoindre une partie</h3>
+      <div class="fld"><label>Votre pseudo</label>
+        <input id="uname2" type="text" placeholder="tonPseudo67" maxlength="20" autocomplete="off"></div>
+      <div class="fld"><label>Code de salle</label>
+        <input id="jcode" type="text" placeholder="XXXX" maxlength="8"
+          style="text-transform:uppercase" autocomplete="off"></div>
+      <button class="btn2" onclick="joinRoom()">Rejoindre →</button>
+    </div>
+  </div>
+</div>
+</div>
+
+<!-- ══ GAME ════════════════════════════════════════════════════ -->
+<div id="game-wrap">
+<div id="game">
+  <main>
+    <div class="rbar">
+      <div>Salle : <span class="hi" id="rcode">—</span></div>
+      <div style="display:flex;gap:10px;align-items:center">
+        <span class="rtag" id="mdisp">—</span>
+        <span class="inv" id="invite-btn" onclick="copyLink()">🔗 Inviter</span>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stb"><div class="stl">Essais</div><div class="stv" id="stries">0</div></div>
+      <div class="stb"><div class="stl">Meilleur rang</div><div class="stv" id="stbest">—</div></div>
+      <div class="stb"><div class="stl">Joueurs</div><div class="stv" id="stpl">1</div></div>
+    </div>
+    <div class="ginput">
+      <input class="gi" id="ginput" type="text" placeholder="Entrez un mot…"
+        autocomplete="off" autocorrect="off" spellcheck="false" autocapitalize="none"
+        oninput="clearErr()" onkeydown="if(event.key==='Enter')guess()">
+      <button class="gbtn" onclick="guess()">Deviner</button>
+    </div>
+    <div class="errmsg" id="errmsg"></div>
+    <div class="slbl">Propositions</div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Mot</th><th>Chaleur</th><th style="text-align:right">Score</th></tr></thead>
+        <tbody id="gtbody"></tbody>
+      </table>
+      <div id="empty" style="color:var(--dm);font-size:.72rem;padding:20px 0;text-align:center">
+        Votre première proposition apparaîtra ici…
+      </div>
+    </div>
+  </main>
+
+  <aside class="sidebar">
+    <div class="ssec"><div class="stit">Joueurs</div><div class="plist" id="plist"></div></div>
+    <div class="ssec" id="feed-section"><div class="stit">Fil en direct</div>
+      <div class="feed" id="feed"><div style="color:var(--dm);font-size:.67rem">En attente…</div></div>
+    </div>
+  </aside>
+</div>
+</div>
+
+</div><!-- #app -->
+
+<footer>
+  <div class="footer-left">
+    <span>Ce<em style="font-style:italic;color:var(--gold)">multi</em>x</span>
+    <span class="footer-sep">·</span>
+    <span>Comme Cémantix, mais à plusieurs!</span>
+  </div>
+  <div class="footer-right">
+    <span class="footer-link" onclick="showPrivacy()" style="cursor:pointer">Confidentialité</span>
+    <span class="footer-sep">·</span>
+    <span class="footer-link" onclick="showCredits()" style="cursor:pointer">Crédits</span>
+  </div>
+</footer>
+
+<!-- ══ FOUND ════════════════════════════════════════════════════ -->
+<div class="ov" id="fov">
+  <div class="fmod">
+    <div class="femo" id="femo">🎉</div>
+    <div class="fword" id="fword"></div>
+    <div class="fsub" id="fsub"></div>
+    <div class="fstats">
+      <div class="fsb"><div class="fsbv" id="fs1">—</div><div class="fsbl" id="fs1l">essais</div></div>
+      <div class="fsb"><div class="fsbv" id="fs2">—</div><div class="fsbl" id="fs2l">classement</div></div>
+    </div>
+    <div class="fac">
+      <button class="btn2" style="width:auto" onclick="document.getElementById('fov').classList.remove('show')">Fermer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ HELP ══════════════════════════════════════════════════════ -->
+<div class="ov" id="hov" onclick="if(event.target===this)closeHelp()">
+  <div class="hmod">
+    <h2>Comment jouer ?</h2>
+    <p>Trouvez le <strong>mot secret</strong> en proposant des mots. La proximité est <strong>sémantique</strong> — deux mots proches partagent des contextes dans des textes, pas forcément le même sens.</p>
+    <p>Chaque essai reçoit un score selon sa distance au mot secret :</p>
+    <div class="tchips">
+      <span class="tc" style="color:var(--hot);background:#1a0a06;border:1px solid var(--hot)">Brûlant 🔥 top 10</span>
+      <span class="tc" style="color:var(--warm);background:#1a1206;border:1px solid var(--warm)">Chaud top 50</span>
+      <span class="tc" style="color:var(--mild);background:#1a1a06;border:1px solid var(--mild)">Tiède top 200</span>
+      <span class="tc" style="color:var(--cool);background:#06101a;border:1px solid var(--cool)">Froid top 500</span>
+      <span class="tc" style="color:var(--cold);background:#060a1a;border:1px solid var(--cold)">Glacial ❄️ top 1000</span>
+      <span class="tc" style="color:#5a8ab0;background:#06080f;border:1px solid #2a4060">Sibérien 🥶 hors top</span>
+    </div>
+    <p>Tous les mots affichent un <strong>score de proximité</strong>, même hors top 1000. Cherchez un <strong>nom singulier ou adjectif masculin singulier</strong>.</p>
+    <p style="color:var(--dm);font-size:.63rem">Les mots hors dictionnaire sont refusés sans compter comme un essai.</p>
+    <button class="cbtn" onclick="closeHelp()">Compris !</button>
+  </div>
+</div>
+
+<div class="ov" id="pov" onclick="if(event.target===this)closePrivacy()">
+  <div class="hmod">
+    <h2>Confidentialité &amp; Mentions légales</h2>
+    <p><strong>Éditeur</strong><br>Cémultix est un projet personnel open-source développé par txrmsconditions et DyaZz. Ce site n'est pas une entité commerciale.</p>
+    <p><strong>Données collectées</strong><br>Cémultix ne collecte aucune donnée personnelle identifiable. Aucun compte, adresse e-mail ou nom réel n'est requis. En mode solo, un identifiant de session anonyme est stocké dans un cookie (cemSess) pour mémoriser votre score quotidien. Ce cookie expire après 24 heures et ne contient aucune information personnelle.</p>
+    <p><strong>Cloudflare</strong><br>Ce site est intégralement hébergé sur l'infrastructure de Cloudflare, Inc. (Workers, Pages, KV, D1). Cloudflare peut collecter des données techniques à des fins de sécurité et de performance, notamment l'adresse IP et les journaux de requêtes. Ces données sont traitées conformément à la politique de confidentialité de Cloudflare : <a href="https://cloudflare.com/privacypolicy" target="_blank" rel="noopener" style="color:var(--gold)">cloudflare.com/privacypolicy</a>.</p>
+    <p><strong>Analytics</strong><br>Cémultix n'utilise aucun outil de tracking ou d'analytics tiers (pas de Google Analytics, pas de pixels publicitaires, pas de cookies de suivi).</p>
+    <p><strong>Pseudonymes</strong><br>Les pseudonymes entrés lors d'une partie multijoueur sont temporairement stockés dans la mémoire du serveur le temps de la partie, puis supprimés automatiquement après 20 minutes d'inactivité. Ils ne sont pas conservés de façon permanente.</p>
+    <p><strong>Scores</strong><br>En mode solo, votre score (pseudonyme + nombre d'essais + date) peut être enregistré dans notre base de données pour le classement quotidien. Ces données sont anonymes et ne permettent pas d'identifier un joueur.</p>
+    <p><strong>Open source</strong><br>Le code source complet de Cémultix est disponible sur GitHub. Vous pouvez à tout moment vérifier exactement quelles données sont traitées.</p>
+    <p><strong>Contact</strong><br>Pour toute question : <a href="mailto:hello@cemultix.games" target="_blank" rel="noopener" style="color:var(--gold)">hello@cemultix.games</a></p>
+    <button class="cbtn" onclick="closePrivacy()">Fermer</button>
+  </div>
+</div>
+
+<div class="ov" id="cov" onclick="if(event.target===this)closeCredits()">
+  <div class="hmod">
+    <h2>Crédits</h2>
+    <p><strong>Cémultix</strong> est un jeu de proximité sémantique multijoueur, inspiré de <a href="https://cemantix.certitudes.org" target="_blank" rel="noopener" style="color:var(--gold)">Cémantix</a> et de <a href="https://semantle.com" target="_blank" rel="noopener" style="color:var(--gold)">Semantle</a>.</p>
+    <p>Les distances sémantiques sont calculées à partir du modèle <strong>frWac</strong> de <a href="https://fauconnier.github.io/" target="_blank" rel="noopener" style="color:var(--gold)">Jean-Philippe Fauconnier</a>, entraîné sur un corpus de plus d'un milliard de mots en français. Deux mots proches dans ce modèle partagent des contextes d'apparition similaires dans les textes — pas nécessairement le même sens.</p>
+    <p>Cémultix a été crée par <strong>DyaZz</strong> et <a href="https://txrmsconditions.com" target="_blank" rel="noopener" style="color:var(--gold)">txrmsconditions</a>. Ceci est un projet personnel, entièrement vibe-codé, et <a href="https://github.com/txrmsconditions/cemultix" target="_blank" rel="noopener" style="color:var(--gold)">open-source</a>. Ceci dit, gardez en tête que ce projet est toujours en bêta, et que des bugs peuvent survenir. </p>
+    <p style="color:var(--dm);font-size:.63rem">Cémultix est un projet personnel, non affilié à Cémantix ou Semantle. Tous les noms et marques déposées appartiennent à leurs propriétaires respectifs.</p>
+    <button class="cbtn" onclick="closeCredits()">Fermer</button>
+  </div>
+</div>
+
+<div class="toasts" id="toasts"></div>
+
+<script>
+/* ── FIRST VISIT ─────────────────────────────────────────────── */
+window.addEventListener('DOMContentLoaded',()=>{
+  if(!localStorage.getItem('cemultix_visited')){
+    document.getElementById('hov').classList.add('show');
+    // Replace close button with gold styled first-visit button
+    const cbtn = document.querySelector('#hov .cbtn');
+    cbtn.textContent = "J'ai compris, allons-y !";
+    cbtn.style.cssText = 'background:var(--gold);color:#0d0d0d;border:none;border-radius:5px;padding:9px 18px;font-family:var(--mono);font-size:.78rem;font-weight:500;cursor:pointer;margin-top:8px;width:100%';
+    cbtn.onclick = () => { localStorage.setItem('cemultix_visited','1'); closeHelp(); };
+  }
+});
+
+/* ── CONFIG ──────────────────────────────────────────────────── */
+const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? 'http://localhost:8787'
+  : 'https://cemantix-api.cemultix.workers.dev';
+
+/* ── STATE ───────────────────────────────────────────────────── */
+const S = {
+  mode:'race', room:null, user:null,
+  guesses:[], tries:0, bestRank:null, found:false,
+  players:[], wnum:null,
+  showOtherWords:true,
+  lastPollTs:0, pollTimer:null, hbTimer:null,
+  lastWinnerEventTs:0,
+};
+
+/* ── HELPERS ─────────────────────────────────────────────────── */
+const AVC=['#7c4daa','#1976d2','#00897b','#f57f17','#d32f2f','#5d4037','#455a64','#c2185b'];
+const avc=n=>{let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h]};
+const avi=n=>(n||'?')[0].toUpperCase();
+
+// Couleur selon rang ET proximité
+const tc=(r,p)=>{
+  if(r===1)return'#4caf7d';
+  if(r&&r<=10)return'#e85d30';
+  if(r&&r<=50)return'#f0963a';
+  if(r&&r<=200)return'#e8d44d';
+  if(r&&r<=500)return'#7ec8e3';
+  if(r&&r<=1000)return'#4a7fc1';
+  if(p>=0.05)return'#7ec8e3';
+  if(p>=0.02)return'#4a7fc1';
+  if(p>=0.005)return'#3a5a80';
+  return'#2a3a5a';
+};
+
+const tn=(r,p)=>{
+  if(r===1)return'Trouvé !';
+  if(r&&r<=10)return'Brûlant 🔥';
+  if(r&&r<=50)return'Chaud';
+  if(r&&r<=200)return'Tiède';
+  if(r&&r<=500)return'Froid';
+  if(r&&r<=1000)return'Glacial ❄️';
+  if(p>=0.05)return'Très froid';
+  if(p>=0.02)return'Polaire';
+  if(p>=0.005)return'Sibérien 🥶';
+  return'Sibérien 🥶';
+};
+
+// Score unifié 0-100% basé sur la proximité
+// top 1000 : proximity = (1000-idx)/1000 → 0.1% à 99.9%
+// hors top  : proximity = (N-idx)/N * 0.1 → 0% à 10%
+// inconnu   : proximity = 0.0001 → ~0%
+const fmtScore=(rank,prox)=>{
+  if(rank===1)return'100%';
+  const pct=prox*100;
+  if(pct>=10)return`${pct.toFixed(1)}%`;
+  if(pct>=1)return`${pct.toFixed(2)}%`;
+  if(pct>=0.01)return`${pct.toFixed(3)}%`;
+  return`~0%`;
+};
+
+// Largeur de barre : top 1000 → 5-99%, hors top → basé sur proximité 0-5%
+const barPct=(rank,prox)=>{
+  if(rank)return Math.max(5,(1000-rank)/10);
+  if(prox)return Math.max(0.5,prox*50);
+  return 0;
+};
+
+function toast(msg,type){
+  const w=document.getElementById('toasts');
+  const el=document.createElement('div');
+  el.className=`toast ${type||''}`;el.textContent=msg;
+  w.appendChild(el);setTimeout(()=>el.remove(),3200);
+}
+function showErr(m){
+  document.getElementById('errmsg').textContent=m;
+  const gi=document.getElementById('ginput');
+  gi.classList.add('invalid');
+  setTimeout(()=>gi.classList.remove('invalid'),400);
+}
+function clearErr(){document.getElementById('errmsg').textContent='';}
+const fmtDuration=ms=>{
+  const t=Math.max(0,Number(ms)||0);
+  const m=String(Math.floor(t/60000)).padStart(2,'0');
+  const s=String(Math.floor((t%60000)/1000)).padStart(2,'0');
+  const ms3=String(t%1000).padStart(3,'0');
+  return `${m}:${s}:${ms3}`;
+};
+function maskedWord(len){return '*'.repeat(Math.max(1,Math.min(40,Number(len)||4)));}
+function syncRaceOptions(){
+  const show=S.mode==='race';
+  const el=document.getElementById('show-others-wrap');
+  if(el)el.style.display=show?'flex':'none';
+}
+
+/* ── MODE ─────────────────────────────────────────────────────── */
+function selMode(el){
+  document.querySelectorAll('.card').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on'); S.mode=el.dataset.mode;
+  const s=S.mode==='solo';
+  document.getElementById('solo-panel').style.display=s?'block':'none';
+  document.getElementById('multi-panel').style.display=s?'none':'flex';
+  syncRaceOptions();
+}
+
+/* ── LOBBY ────────────────────────────────────────────────────── */
+async function startSolo(){
+  S.user='Joueur';S.room='SOLO';await initSolo();
+}
+
+async function createRoom(){
+  const u=document.getElementById('uname').value.trim();
+  if(!u){toast('Entrez un pseudo','err');return}
+  const mp=+document.getElementById('maxp').value;
+  const showOtherWords=!!document.getElementById('show-others-toggle')?.checked;
+  try{
+    const r=await fetch(`${API}/api/room`,{
+      method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({username:u,roomName:'Salle',maxPlayers:mp,mode:S.mode,showOtherWords})
+    });
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Erreur');
+    S.user=u;S.room=d.roomCode;enterGame(d);
+  }catch(e){toast(e.message,'err')}
+}
+
+async function joinRoom(){
+  const u=(document.getElementById('uname2').value.trim()||document.getElementById('uname').value.trim());
+  const c=document.getElementById('jcode').value.trim().toUpperCase();
+  if(!u){toast('Entrez un pseudo','err');return}
+  if(!c){toast('Entrez un code','err');return}
+  try{
+    const r=await fetch(`${API}/api/room/${c}/join`,{
+      method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({username:u})
+    });
+    const d=await r.json();if(!r.ok)throw new Error(d.error||'Introuvable');
+    S.user=u;S.room=c;S.mode=d.mode;enterGame(d);
+  }catch(e){toast(e.message,'err')}
+}
+
+window.addEventListener('DOMContentLoaded',()=>{
+  const rc=new URLSearchParams(location.search).get('room');
+  if(rc){
+    document.getElementById('jcode').value=rc.toUpperCase();
+    document.getElementById('uname').focus();
+    document.getElementById('uname').placeholder='Votre pseudo pour rejoindre…';
+    toast(`Code ${rc} pré-rempli — entrez votre pseudo`);
+    history.replaceState(null,'',location.pathname+location.hash);
+  }
+});
+
+/* ── ENTER GAME ───────────────────────────────────────────────── */
+function enterGame(d){
+  document.getElementById('lobby-wrap').style.display='none';
+  document.getElementById('game-wrap').style.display='flex';
+  document.getElementById('obadge').style.display='flex';
+  document.getElementById('rcode').textContent=S.room;
+  const ml={race:'⚡ Course',coop:'🤝 Coopératif',solo:'🧘 Solo'};
+  document.getElementById('mdisp').textContent=ml[S.mode]||S.mode;
+  document.getElementById('invite-btn').style.display='';
+  document.getElementById('feed-section').style.display='';
+  document.getElementById('rcode').closest('.rbar').style.display='';
+  S.showOtherWords=d.showOtherWords!==undefined?!!d.showOtherWords:true;
+  S.lastWinnerEventTs=0;
+  if(d.players)updPlayers(d.players);
+  if(d.wordNumber)S.wnum=d.wordNumber;
+  if(d.guesses&&S.mode==='coop')d.guesses.forEach(g=>addRow(g.word,g.rank,g.proximity,false,g.player,g.found||false,{key:`${g.player}:${g.ts||g.word}`}));
+  startPoll();
+  document.getElementById('ginput').focus();
+}
+
+async function initSolo(){
+  document.getElementById('lobby-wrap').style.display='none';
+  document.getElementById('game-wrap').style.display='flex';
+  document.getElementById('obadge').style.display='flex';
+  document.getElementById('rcode').closest('.rbar').style.display='none';
+  document.getElementById('mdisp').textContent='🧘 Solo';
+  document.getElementById('stpl').textContent='1';
+  document.getElementById('invite-btn').style.display='none';
+  document.getElementById('feed-section').style.display='none';
+  updPlayers([{username:S.user,tries:0,found:false}]);
+  try{const r=await fetch(`${API}/api/daily`,{credentials:'include'});const d=await r.json();S.wnum=d.wordNumber;}catch{}
+  document.getElementById('ginput').focus();
+}
+
+/* ── POLLING ──────────────────────────────────────────────────── */
+function startPoll(){
+  if(S.room==='SOLO')return;
+  S.hbTimer=setInterval(sendHeartbeat,3000);sendHeartbeat();
+  S.pollTimer=setInterval(pollState,1500);pollState();
+}
+
+async function sendHeartbeat(){
+  if(!S.room||S.room==='SOLO')return;
+  try{await fetch(`${API}/api/room/${S.room}/heartbeat`,{
+    method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+    body:JSON.stringify({username:S.user})
+  });}catch{}
+}
+
+async function pollState(){
+  if(!S.room||S.room==='SOLO')return;
+  try{
+    const u=encodeURIComponent(S.user||'');
+    const r=await fetch(`${API}/api/room/${S.room}/state?since=${S.lastPollTs}&user=${u}`,{credentials:'include'});
+    if(!r.ok)return;
+    const d=await r.json();if(d.error)return;
+    if(d.serverTs)S.lastPollTs=d.serverTs;
+    if(d.showOtherWords!==undefined)S.showOtherWords=!!d.showOtherWords;
+    if(d.players)updPlayers(d.players);
+    if(d.guesses&&d.guesses.length>0){
+      d.guesses.forEach(g=>{
+        const mine=g.player===S.user;
+        const key=g.word?`w:${g.word}`:`h:${g.player}:${g.ts||Math.random()}`;
+        const displayWord=g.word||maskedWord(g.wordLength);
+        if(S.mode==='coop'||!mine)addRow(displayWord,g.rank,g.proximity,mine,g.player,g.found||false,{hidden:!!g.hidden,key});
+        addFeed(displayWord,g.rank,g.proximity,g.player,false);
+      });
+    }
+    if(d.winnerEvent&&d.winnerEvent.ts&&d.winnerEvent.ts>S.lastWinnerEventTs){
+      S.lastWinnerEventTs=d.winnerEvent.ts;
+      showWinnerEvent(d.winnerEvent);
+    }
+  }catch{}
+}
+
+/* ── GUESS ────────────────────────────────────────────────────── */
+async function guess(){
+  if(S.found)return;
+  const inp=document.getElementById('ginput');
+  const w=inp.value.trim().toLowerCase().normalize('NFC');
+  if(!w)return;
+  if(/\s/.test(w)){showErr('Un seul mot à la fois');return}
+  inp.disabled=true;document.querySelector('.gbtn').disabled=true;clearErr();
+  try{
+    const ep=S.room==='SOLO'?`${API}/api/guess`:`${API}/api/room/${S.room}/guess`;
+    const r=await fetch(ep,{
+      method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({word:w,username:S.user})
+    });
+    const d=await r.json();
+    if(!r.ok){showErr(d.error||'Erreur');return}
+    S.tries++;document.getElementById('stries').textContent=S.tries;inp.value='';
+    const{rank,proximity,found}=d;
+    if(S.mode!=='coop')addRow(w,rank,proximity,true,S.user,found);
+    if(S.bestRank===null||(rank&&rank<S.bestRank)){
+      S.bestRank=rank;document.getElementById('stbest').textContent=rank?`${rank}‰`:'—';
+    }
+    if(found){
+      S.found=true;
+      if(S.room==='SOLO')showFound(w,d.globalRank);
+      else disableInput('Mot trouvé !');
+    }
+  }catch(e){showErr('Erreur réseau — le serveur est-il lancé ?')}
+  finally{inp.disabled=false;document.querySelector('.gbtn').disabled=false;inp.focus()}
+}
+
+/* ── TABLE ────────────────────────────────────────────────────── */
+function addRow(word,rank,proximity,mine,player,found=false){
+  const tb=document.getElementById('gtbody');
+  document.getElementById('empty').style.display='none';
+  const opts=arguments[6]||{};
+  const rowKey=opts.key||`w:${word}`;
+  const exists=[...tb.querySelectorAll('tr')].find(r=>r.dataset.key===rowKey);
+  if(exists)return;
+  const col=tc(rank,proximity);
+  const pct=barPct(rank,proximity);
+  const score=fmtScore(rank,proximity);
+  const tr=document.createElement('tr');
+  if(rank===1)tr.classList.add('frow');
+  tr.dataset.key=rowKey;
+  tr.innerHTML=`<td class="rnum">${tb.children.length+1}</td>
+<td class="wc${mine?'':' other'}" data-w="${word}">${word}${!mine?`<span class="who">${player||''}</span>`:''}</td>
+<td>${found
+  ?`<span class="fbadge">✓ Trouvé !</span>`
+  :rank===1
+    ?`<span class="tlbl" style="color:var(--hot);background:#2a0a0618;border:1px solid var(--hot);font-size:.61rem">🔥 Très proche !</span>`
+    :`<span class="tlbl" style="color:${col};background:${col}18;border:1px solid ${col}44">${tn(rank,proximity)}</span>`
+}</td>
+<td><div class="pbar-w">
+  <div class="pbar"><div class="pbar-f" style="width:${pct}%;background:${col}"></div></div>
+  <span class="pnum" style="color:${col}">${score}</span>
+</div></td>`;
+  // Tri : found en tête, puis rang croissant, puis proximité décroissante
+  tr.dataset.rank=rank||'';
+  tr.dataset.prox=proximity||0;
+  tr.dataset.found=(found||rank===1)?'1':'';
+  const rows=[...tb.querySelectorAll('tr')];
+  const ins=rows.find(r=>{
+    const rFound=r.dataset.found==='1';
+    const rRank=r.dataset.rank?+r.dataset.rank:null;
+    const rProx=+r.dataset.prox||0;
+    // Le mot trouvé passe toujours en premier
+    if(found&&!rFound)return true;
+    if(!found&&rFound)return false;
+    // Sinon tri par rang puis proximité
+    if(rank&&rRank)return rank<rRank;
+    if(rank&&!rRank)return true;
+    if(!rank&&rRank)return false;
+    return proximity>rProx;
+  });
+  if(ins)tb.insertBefore(tr,ins);else tb.appendChild(tr);
+  [...tb.querySelectorAll('tr')].forEach((r,i)=>r.querySelector('.rnum').textContent=i+1);
+  S.guesses.push({word,rank,proximity,mine,player});
+}
+
+/* ── FEED ─────────────────────────────────────────────────────── */
+function addFeed(word,rank,prox,player,isFound){
+  const f=document.getElementById('feed');
+  const emp=f.querySelector('div[style]');if(emp)emp.remove();
+  const already=[...f.querySelectorAll('.fw')].find(el=>el.textContent===word&&el.closest('.fi')?.dataset?.player===player);
+  if(already)return;
+  const el=document.createElement('div');
+  el.className='fi'+(isFound?' ff':'');
+  el.dataset.player=player;
+  const col=tc(rank,prox);
+  const score=fmtScore(rank,prox);
+  if(isFound)el.innerHTML=`<strong style="color:var(--ok)">${player}</strong> a trouvé <strong class="fw" style="color:var(--gold)">${word}</strong> 🎉`;
+  else el.innerHTML=`<strong>${player}</strong> — <span class="fw">${word}</span> <span style="color:${col};font-size:.6rem">${score}</span>`;
+  f.insertBefore(el,f.firstChild);
+  while(f.children.length>20)f.removeChild(f.lastChild);
+}
+
+/* ── PLAYERS ──────────────────────────────────────────────────── */
+function updPlayers(ps){
+  S.players=ps;
+  const l=document.getElementById('plist');l.innerHTML='';
+  ps.forEach(p=>{
+    const col=avc(p.username);const d=document.createElement('div');d.className='pi';
+    d.innerHTML=`<div class="av" style="background:${col}20;color:${col};border:1px solid ${col}44">${avi(p.username)}</div>
+<div class="pm"><div class="pname">${p.username}${p.username===S.user?' <span style="color:var(--dm);font-size:.58rem">(vous)</span>':''}</div>
+<div class="pstat">${p.found?'✓ Trouvé !':p.tries?`${p.tries} essai${p.tries>1?'s':''}`:'En attente…'}</div></div>
+${p.found?'<span style="color:var(--ok)">🏆</span>':''}`;
+    l.appendChild(d);
+  });
+  document.getElementById('ocnt').textContent=ps.length;
+  document.getElementById('stpl').textContent=ps.length;
+}
+
+/* ── FOUND ────────────────────────────────────────────────────── */
+function showFound(word,gr){
+  document.getElementById('fword').textContent=word;
+  document.getElementById('femo').textContent=S.tries<20?'🚀':S.tries<50?'🎉':'😅';
+  document.getElementById('fsub').textContent=`Bravo ! ${S.tries} essai${S.tries>1?'s':''} pour trouver « ${word} ».`;
+  document.getElementById('fs1').textContent=S.tries;
+  document.getElementById('fs2').textContent=gr?`#${gr}`:'—';
+  document.getElementById('fs1l').textContent='essais';
+  document.getElementById('fs2l').textContent='classement';
+  document.getElementById('fov').classList.add('show');
+  disableInput('Mot trouvé !');
+}
+function showWinnerEvent(evt){
+  if(!evt)return;
+  const word=evt.word||'—';
+  const t=fmtDuration(evt.durationMs);
+  S.found=true;
+  document.getElementById('fword').textContent=word;
+  document.getElementById('femo').textContent='🏆';
+  if(evt.mode==='coop'){
+    document.getElementById('fsub').textContent=`${evt.winner} a trouvé le mot « ${word} » ! L'équipe a réussi en ${evt.totalGuesses} essai${evt.totalGuesses>1?'s':''}.`;
+    document.getElementById('fs1').textContent=evt.totalGuesses;
+    document.getElementById('fs2').textContent=t;
+    document.getElementById('fs1l').textContent='essais équipe';
+    document.getElementById('fs2l').textContent='temps';
+  }else{
+    document.getElementById('fsub').textContent=`${evt.winner} a trouvé le mot « ${word} » en ${t} !`;
+    document.getElementById('fs1').textContent=t;
+    document.getElementById('fs2').textContent=evt.totalGuesses;
+    document.getElementById('fs1l').textContent='temps';
+    document.getElementById('fs2l').textContent='essais salle';
+  }
+  document.getElementById('fov').classList.add('show');
+  disableInput(evt.mode==='race'?`${evt.winner} a gagné`:'Mot trouvé !');
+  toast(`🏆 ${evt.winner} a trouvé le mot !`,'ok');
+}
+function disableInput(msg){
+  document.getElementById('ginput').disabled=true;
+  document.getElementById('ginput').placeholder=msg;
+  document.querySelector('.gbtn').disabled=true;
+}
+
+/* ── NAVIGATION ───────────────────────────────────────────────── */
+function goHome(){
+  if(S.pollTimer)clearInterval(S.pollTimer);
+  if(S.hbTimer)clearInterval(S.hbTimer);
+  S.room=null;S.user=null;S.guesses=[];S.tries=0;
+  S.bestRank=null;S.found=false;S.players=[];S.lastPollTs=0;
+  S.lastWinnerEventTs=0;
+  S.showOtherWords=true;
+  document.getElementById('game-wrap').style.display='none';
+  document.getElementById('lobby-wrap').style.display='flex';
+  document.getElementById('obadge').style.display='none';
+  document.getElementById('fov').classList.remove('show');
+  document.getElementById('gtbody').innerHTML='';
+  document.getElementById('empty').style.display='block';
+  document.getElementById('stries').textContent='0';
+  document.getElementById('stbest').textContent='—';
+  document.getElementById('errmsg').textContent='';
+  const gi=document.getElementById('ginput');
+  gi.disabled=false;gi.placeholder='Entrez un mot…';
+  document.querySelector('.gbtn').disabled=false;
+  history.replaceState(null,'',location.pathname);
+}
+function showHelp(){
+  const cbtn=document.querySelector('#hov .cbtn');
+  cbtn.textContent='Compris !';
+  cbtn.style.cssText='';
+  cbtn.onclick=closeHelp;
+  document.getElementById('hov').classList.add('show');
+}
+function closeHelp(){document.getElementById('hov').classList.remove('show')}
+function showPrivacy(){document.getElementById('pov').classList.add('show')}
+function closePrivacy(){document.getElementById('pov').classList.remove('show')}
+function showCredits(){document.getElementById('cov').classList.add('show')}
+function closeCredits(){document.getElementById('cov').classList.remove('show')}
+function copyLink(){
+  navigator.clipboard.writeText(`${location.origin}${location.pathname}?room=${S.room}`)
+    .then(()=>toast('Lien copié !','ok'));
+}
+function share(){
+  const bars=S.guesses.map(g=>!g.rank?'⬛':g.rank<=10?'🟥':g.rank<=50?'🟧':g.rank<=200?'🟨':g.rank<=500?'🟦':'⬜').join('');
+  navigator.clipboard.writeText(`éemultix — Mot #${S.wnum||'?'}\n${S.tries} essais\n${bars}\n${location.origin}`)
+    .then(()=>toast('Résultat copié !','ok'));
+}
+
+window.addEventListener('DOMContentLoaded',()=>{syncRaceOptions();});
+</script>
+</body>
+</html>

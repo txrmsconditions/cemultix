@@ -1,0 +1,25 @@
+name = "cemantix-api"
+main = "src/index.js"
+compatibility_date = "2024-09-23"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "KV"
+id = "b897a3e5085d4421af84c0d3cd9c0400"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "cemantix-db"
+database_id = "51492e9e-8ea4-4d05-8061-931940a0fb0b"
+
+[[durable_objects.bindings]]
+name = "ROOM_DO"
+class_name = "RoomDO"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RoomDO"]
+
+[vars]
+ENVIRONMENT = "production"
