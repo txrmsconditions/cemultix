@@ -155,6 +155,34 @@ main{
 .gbtn{background:var(--gold);border:none;border-radius:var(--r);padding:10px 16px;color:#0d0d0d;font-family:var(--mono);font-size:.76rem;font-weight:500;cursor:pointer;white-space:nowrap;transition:opacity .15s}
 .gbtn:hover{opacity:.85}.gbtn:disabled{opacity:.4;cursor:default}
 .errmsg{font-size:.7rem;color:var(--hot);min-height:1em;margin-bottom:6px;flex-shrink:0}
+.hud{display:flex;gap:8px;align-items:stretch;margin-bottom:10px;flex-shrink:0}
+.timer-box{
+  min-width:112px;display:flex;flex-direction:column;justify-content:center;
+  background:linear-gradient(140deg,#16140f,#1d1a12);
+  border:1px solid #3d3220;border-radius:var(--r);padding:8px 10px;
+}
+.timer-l{font-size:.56rem;color:#bca36b;text-transform:uppercase;letter-spacing:.12em}
+.timer-v{font-size:1.06rem;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+.hint-box{
+  flex:1;display:flex;flex-direction:column;gap:4px;
+  background:linear-gradient(140deg,#13161a,#111417);
+  border:1px solid #2a323a;border-radius:var(--r);padding:8px 10px;
+}
+.hint-top{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.hint-l{font-size:.58rem;color:#93a4b3;text-transform:uppercase;letter-spacing:.12em}
+.hint-s{font-size:.62rem;color:var(--mt);text-align:right;min-height:1em}
+.hint-btn{
+  background:#182431;border:1px solid #30506b;border-radius:6px;
+  padding:7px 10px;color:#c7ddef;font-family:var(--mono);font-size:.72rem;
+  cursor:pointer;transition:all .15s;
+}
+.hint-btn:hover{border-color:#5d87aa;color:#e8f5ff}
+.hint-btn:disabled{opacity:.5;cursor:default}
+.hint-c{font-size:.74rem;color:var(--gold);min-height:1.2em;line-height:1.35}
+@media(max-width:720px){
+  .hud{flex-direction:column}
+  .timer-box{min-width:0}
+}
 .slbl{font-size:.59rem;color:var(--dm);text-transform:uppercase;letter-spacing:.12em;margin-bottom:6px;flex-shrink:0}
 
 /* Scrollable table area */
@@ -239,7 +267,7 @@ tbody td{padding:7px 7px}
 <body>
 
 <header>
-  <div class="logo" onclick="goHome()">Ce<em>multi</em>x</div>
+  <div class="logo" onclick="goHome()">Cé<em>multi</em>x</div>
   <div class="hdr-r">
     <div class="badge" id="obadge" style="display:none"><div class="dot"></div><span id="ocnt">0</span></div>
     <button class="hbtn" onclick="showHelp()">?</button>
@@ -330,6 +358,20 @@ tbody td{padding:7px 7px}
       <button class="gbtn" onclick="guess()">Deviner</button>
     </div>
     <div class="errmsg" id="errmsg"></div>
+    <div class="hud">
+      <div class="timer-box">
+        <div class="timer-l">Temps</div>
+        <div class="timer-v" id="gtimer">00:00</div>
+      </div>
+      <div class="hint-box">
+        <div class="hint-top">
+          <div class="hint-l">Indice</div>
+          <div class="hint-s" id="hint-status">Disponible dans 01:30</div>
+        </div>
+        <button class="hint-btn" id="hint-btn" onclick="onHintAction()" disabled>Proposer un indice</button>
+        <div class="hint-c" id="hint-category"></div>
+      </div>
+    </div>
     <div class="slbl">Propositions</div>
     <div class="table-wrap">
       <table>
@@ -355,7 +397,7 @@ tbody td{padding:7px 7px}
 
 <footer>
   <div class="footer-left">
-    <span>Ce<em style="font-style:italic;color:var(--gold)">multi</em>x</span>
+    <span>Cé<em style="font-style:italic;color:var(--gold)">multi</em>x</span>
     <span class="footer-sep">·</span>
     <span>Comme Cémantix, mais à plusieurs!</span>
   </div>
@@ -456,10 +498,13 @@ const S = {
   showOtherWords:true,
   lastPollTs:0, pollTimer:null, hbTimer:null,
   lastWinnerEventTs:0,
+  gameStartedAt:null, gameTimer:null,
+  hint:{availableAt:null,revealed:false,category:null,proposal:null,loading:false},
 };
 
 /* ── HELPERS ─────────────────────────────────────────────────── */
 const AVC=['#7c4daa','#1976d2','#00897b','#f57f17','#d32f2f','#5d4037','#455a64','#c2185b'];
+const HINT_DELAY_MS = 90_000;
 const avc=n=>{let h=0;for(const c of n)h=(h*31+c.charCodeAt(0))%AVC.length;return AVC[h]};
 const avi=n=>(n||'?')[0].toUpperCase();
 
@@ -530,11 +575,144 @@ const fmtDuration=ms=>{
   const ms3=String(t%1000).padStart(3,'0');
   return `${m}:${s}:${ms3}`;
 };
+const fmtClock=ms=>{
+  const t=Math.max(0,Number(ms)||0);
+  const m=String(Math.floor(t/60000)).padStart(2,'0');
+  const s=String(Math.floor((t%60000)/1000)).padStart(2,'0');
+  return `${m}:${s}`;
+};
 function maskedWord(len){return '*'.repeat(Math.max(1,Math.min(40,Number(len)||4)));}
 function syncRaceOptions(){
   const show=S.mode==='race';
   const el=document.getElementById('show-others-wrap');
   if(el)el.style.display=show?'flex':'none';
+}
+function elapsedMs(){
+  if(!S.gameStartedAt)return 0;
+  return Math.max(0,Date.now()-S.gameStartedAt);
+}
+function stopGameClock(){
+  if(S.gameTimer)clearInterval(S.gameTimer);
+  S.gameTimer=null;
+}
+function startGameClock(startAt){
+  stopGameClock();
+  S.gameStartedAt=Number(startAt)||Date.now();
+  const tick=()=>{
+    document.getElementById('gtimer').textContent=fmtClock(elapsedMs());
+    updateHintUi();
+  };
+  tick();
+  S.gameTimer=setInterval(tick,250);
+}
+function applyHintState(h){
+  if(!h)return;
+  const prevRevealed=!!S.hint.revealed;
+  S.hint.availableAt=h.availableAt||((S.gameStartedAt||Date.now())+HINT_DELAY_MS);
+  S.hint.revealed=!!h.revealed;
+  S.hint.category=h.category||null;
+  S.hint.proposal=h.proposal||null;
+  if(!prevRevealed&&S.hint.revealed&&S.hint.category){
+    toast(`Indice révélé : ${S.hint.category}`,'ok');
+  }
+  updateHintUi();
+}
+function updateHintUi(){
+  const btn=document.getElementById('hint-btn');
+  const status=document.getElementById('hint-status');
+  const cat=document.getElementById('hint-category');
+  if(!btn||!status||!cat)return;
+  const availAt=S.hint.availableAt||(S.gameStartedAt?S.gameStartedAt+HINT_DELAY_MS:null);
+  const remaining=availAt?Math.max(0,Math.ceil((availAt-Date.now())/1000)):90;
+  const ready=remaining<=0;
+
+  cat.textContent=S.hint.revealed&&S.hint.category?`Catégorie : ${S.hint.category}`:'';
+
+  if(S.mode==='solo'){
+    if(S.hint.revealed){
+      status.textContent='Indice affiché';
+      btn.textContent='Indice révélé';
+      btn.disabled=true;
+      return;
+    }
+    if(!ready){
+      status.textContent=`Disponible dans ${fmtClock(remaining*1000)}`;
+      btn.textContent='Indice verrouillé';
+      btn.disabled=true;
+      return;
+    }
+    status.textContent='Disponible';
+    btn.textContent=S.hint.loading?'Chargement...':'Demander un indice';
+    btn.disabled=!!S.hint.loading;
+    return;
+  }
+
+  if(S.hint.revealed){
+    status.textContent='Indice révélé pour la salle';
+    btn.textContent='Indice révélé';
+    btn.disabled=true;
+    return;
+  }
+  if(!ready){
+    status.textContent=`Disponible dans ${fmtClock(remaining*1000)}`;
+    btn.textContent='Indice verrouillé';
+    btn.disabled=true;
+    return;
+  }
+
+  if(S.hint.proposal){
+    const p=S.hint.proposal;
+    status.textContent=`Votes ${p.yesVotes}/${p.totalPlayers} (objectif ${p.needed})`;
+    if(p.userVoted){
+      btn.textContent='Vote enregistré';
+      btn.disabled=true;
+    }else{
+      btn.textContent='Voter pour l\'indice';
+      btn.disabled=!!S.hint.loading;
+    }
+    return;
+  }
+
+  status.textContent='Disponible';
+  btn.textContent=S.hint.loading?'Envoi...':'Proposer un indice';
+  btn.disabled=!!S.hint.loading;
+}
+
+async function onHintAction(){
+  if(S.mode==='solo'){
+    const availAt=S.hint.availableAt||(S.gameStartedAt+HINT_DELAY_MS);
+    if(Date.now()<availAt){toast('Indice dispo après 1m30','err');return;}
+    if(S.hint.revealed)return;
+    const ok=window.confirm('Tu es sûr ? Tu veux afficher la catégorie du mot secret ?');
+    if(!ok)return;
+    S.hint.loading=true;updateHintUi();
+    try{
+      const r=await fetch(`${API}/api/hint/solo`,{credentials:'include'});
+      const d=await r.json();
+      if(!r.ok)throw new Error(d.error||'Impossible de récupérer l\'indice');
+      applyHintState({revealed:true,category:d.category,availableAt:availAt});
+    }catch(e){toast(e.message,'err');}
+    finally{S.hint.loading=false;updateHintUi();}
+    return;
+  }
+
+  if(!S.room||S.room==='SOLO')return;
+  S.hint.loading=true;updateHintUi();
+  try{
+    const r=await fetch(`${API}/api/room/${S.room}/hint/propose`,{
+      method:'POST',headers:{'Content-Type':'application/json'},credentials:'include',
+      body:JSON.stringify({username:S.user})
+    });
+    const d=await r.json();
+    if(!r.ok){
+      if(d.secondsRemaining){
+        applyHintState({availableAt:Date.now()+d.secondsRemaining*1000,revealed:false,proposal:null});
+      }
+      throw new Error(d.error||'Action impossible');
+    }
+    if(d.hint)applyHintState(d.hint);
+  }catch(e){toast(e.message,'err');}
+  finally{S.hint.loading=false;updateHintUi();}
 }
 
 /* ── MODE ─────────────────────────────────────────────────────── */
@@ -606,6 +784,9 @@ function enterGame(d){
   document.getElementById('rcode').closest('.rbar').style.display='';
   S.showOtherWords=d.showOtherWords!==undefined?!!d.showOtherWords:true;
   S.lastWinnerEventTs=0;
+  S.hint={availableAt:null,revealed:false,category:null,proposal:null,loading:false};
+  startGameClock(d.gameStartedAt||Date.now());
+  applyHintState(d.hint||{availableAt:(d.gameStartedAt||Date.now())+HINT_DELAY_MS,revealed:false,proposal:null});
   if(d.players)updPlayers(d.players);
   if(d.wordNumber)S.wnum=d.wordNumber;
   if(d.guesses&&S.mode==='coop')d.guesses.forEach(g=>addRow(g.word,g.rank,g.proximity,false,g.player,g.found||false,{key:`${g.player}:${g.ts||g.word}`}));
@@ -622,6 +803,9 @@ async function initSolo(){
   document.getElementById('stpl').textContent='1';
   document.getElementById('invite-btn').style.display='none';
   document.getElementById('feed-section').style.display='none';
+  S.hint={availableAt:null,revealed:false,category:null,proposal:null,loading:false};
+  startGameClock(Date.now());
+  applyHintState({availableAt:Date.now()+HINT_DELAY_MS,revealed:false,proposal:null});
   updPlayers([{username:S.user,tries:0,found:false}]);
   try{const r=await fetch(`${API}/api/daily`,{credentials:'include'});const d=await r.json();S.wnum=d.wordNumber;}catch{}
   document.getElementById('ginput').focus();
@@ -650,7 +834,9 @@ async function pollState(){
     if(!r.ok)return;
     const d=await r.json();if(d.error)return;
     if(d.serverTs)S.lastPollTs=d.serverTs;
+    if(d.gameStartedAt&&!S.gameStartedAt)startGameClock(d.gameStartedAt);
     if(d.showOtherWords!==undefined)S.showOtherWords=!!d.showOtherWords;
+    if(d.hint)applyHintState(d.hint);
     if(d.players)updPlayers(d.players);
     if(d.guesses&&d.guesses.length>0){
       d.guesses.forEach(g=>{
@@ -827,10 +1013,13 @@ function disableInput(msg){
 function goHome(){
   if(S.pollTimer)clearInterval(S.pollTimer);
   if(S.hbTimer)clearInterval(S.hbTimer);
+  stopGameClock();
   S.room=null;S.user=null;S.guesses=[];S.tries=0;
   S.bestRank=null;S.found=false;S.players=[];S.lastPollTs=0;
   S.lastWinnerEventTs=0;
   S.showOtherWords=true;
+  S.gameStartedAt=null;
+  S.hint={availableAt:null,revealed:false,category:null,proposal:null,loading:false};
   document.getElementById('game-wrap').style.display='none';
   document.getElementById('lobby-wrap').style.display='flex';
   document.getElementById('obadge').style.display='none';
@@ -840,6 +1029,12 @@ function goHome(){
   document.getElementById('stries').textContent='0';
   document.getElementById('stbest').textContent='—';
   document.getElementById('errmsg').textContent='';
+  document.getElementById('gtimer').textContent='00:00';
+  document.getElementById('hint-status').textContent='Disponible dans 01:30';
+  document.getElementById('hint-category').textContent='';
+  const hb=document.getElementById('hint-btn');
+  hb.textContent='Proposer un indice';
+  hb.disabled=true;
   const gi=document.getElementById('ginput');
   gi.disabled=false;gi.placeholder='Entrez un mot…';
   document.querySelector('.gbtn').disabled=false;
@@ -863,7 +1058,7 @@ function copyLink(){
 }
 function share(){
   const bars=S.guesses.map(g=>!g.rank?'⬛':g.rank<=10?'🟥':g.rank<=50?'🟧':g.rank<=200?'🟨':g.rank<=500?'🟦':'⬜').join('');
-  navigator.clipboard.writeText(`éemultix — Mot #${S.wnum||'?'}\n${S.tries} essais\n${bars}\n${location.origin}`)
+  navigator.clipboard.writeText(`Cémultix — Mot #${S.wnum||'?'}\n${S.tries} essais\n${bars}\n${location.origin}`)
     .then(()=>toast('Résultat copié !','ok'));
 }
 

@@ -4,6 +4,59 @@ export class RoomDO {
     this.room = null;
   }
 
+  sanitizeActivePlayers() {
+    if (!this.room) return;
+    this.room.players = this.room.players.filter(
+      p => !p.lastSeen || Date.now() - p.lastSeen < 10000
+    );
+  }
+
+  hintStatusFor(viewer = '') {
+    const now = Date.now();
+    const availableAt = (this.room?.createdAt || now) + 90_000;
+    const secondsRemaining = Math.max(0, Math.ceil((availableAt - now) / 1000));
+    const hint = this.room?.hint || { revealed: false, category: null, proposal: null };
+    const status = {
+      availableAt,
+      secondsRemaining,
+      revealed: !!hint.revealed,
+      category: hint.revealed ? (hint.category || this.room?.secretCategory || null) : null,
+      proposal: null,
+    };
+    if (hint.proposal && !hint.revealed) {
+      const totalPlayers = Math.max(1, (this.room?.players || []).length);
+      const needed = Math.ceil(totalPlayers * 0.51);
+      const votesYes = Array.isArray(hint.proposal.votesYes) ? hint.proposal.votesYes : [];
+      status.proposal = {
+        id: hint.proposal.id,
+        proposer: hint.proposal.proposer,
+        yesVotes: votesYes.length,
+        totalPlayers,
+        needed,
+        userVoted: !!viewer && votesYes.includes(viewer),
+      };
+    }
+    return status;
+  }
+
+  evaluateHintVotes() {
+    if (!this.room || !this.room.hint || this.room.hint.revealed) return false;
+    const proposal = this.room.hint.proposal;
+    if (!proposal) return false;
+    this.sanitizeActivePlayers();
+    const totalPlayers = Math.max(1, this.room.players.length);
+    const votesYes = Array.isArray(proposal.votesYes) ? proposal.votesYes.length : 0;
+    const needed = Math.ceil(totalPlayers * 0.51);
+    if (votesYes >= needed) {
+      this.room.hint.revealed = true;
+      this.room.hint.revealedAt = Date.now();
+      this.room.hint.category = this.room.secretCategory || this.room.hint.category || null;
+      this.room.hint.proposal = null;
+      return true;
+    }
+    return false;
+  }
+
   async load() {
     if (!this.room) this.room = await this.state.storage.get('room') || null;
     return this.room;
@@ -41,9 +94,16 @@ export class RoomDO {
         maxPlayers: b.maxPlayers, mode: b.mode,
         showOtherWords: !!b.showOtherWords,
         secret: b.secret, wordNumber: b.wordNumber,
+        secretCategory: b.secretCategory || null,
         players: [], guesses: [],
         winner: null, finished: false,
         winnerEvent: null,
+        hint: {
+          revealed: false,
+          revealedAt: null,
+          category: b.secretCategory || null,
+          proposal: null,
+        },
         createdAt: Date.now(),
         lastActivity: Date.now(),
       };
@@ -54,6 +114,8 @@ export class RoomDO {
         mode: this.room.mode,
         wordNumber: this.room.wordNumber,
         showOtherWords: this.room.mode === 'race' ? !!this.room.showOtherWords : true,
+        gameStartedAt: this.room.createdAt,
+        hint: this.hintStatusFor(''),
         players: [],
       });
     }
@@ -71,6 +133,8 @@ export class RoomDO {
       return ok({
         mode: this.room.mode, wordNumber: this.room.wordNumber,
         showOtherWords: this.room.mode === 'race' ? !!this.room.showOtherWords : true,
+        gameStartedAt: this.room.createdAt,
+        hint: this.hintStatusFor(''),
         players: this.room.players,
         guesses: this.room.mode === 'coop' ? this.room.guesses : [],
       });
@@ -86,9 +150,8 @@ export class RoomDO {
       pl.lastSeen = Date.now();
       this.room.lastActivity = Date.now();
       // Retire les joueurs inactifs depuis plus de 10s
-      this.room.players = this.room.players.filter(
-        p => !p.lastSeen || Date.now() - p.lastSeen < 10000
-      );
+      this.sanitizeActivePlayers();
+      this.evaluateHintVotes();
       await this.save();
       await this.updateActivity();
       return ok({ ok: true });
@@ -98,9 +161,8 @@ export class RoomDO {
     if (p === '/state' && m === 'GET') {
       await this.load();
       if (!this.room) return ok({ error: 'Salle introuvable' }, 404);
-      this.room.players = this.room.players.filter(
-        p => !p.lastSeen || Date.now() - p.lastSeen < 10000
-      );
+      this.sanitizeActivePlayers();
+      this.evaluateHintVotes();
       await this.save();
       const since = parseInt(url.searchParams.get('since') || '0');
       const viewer = String(url.searchParams.get('user') || '');
@@ -142,8 +204,63 @@ export class RoomDO {
         finished: this.room.finished,
         mode:     this.room.mode,
         showOtherWords: this.room.mode === 'race' ? !!this.room.showOtherWords : true,
+        gameStartedAt: this.room.createdAt,
+        hint: this.hintStatusFor(viewer),
         serverTs: Date.now(),
       });
+    }
+
+    // POST /hint/propose
+    if (p === '/hint/propose' && m === 'POST') {
+      await this.load();
+      if (!this.room) return ok({ error: 'Salle introuvable' }, 404);
+      if (this.room.mode === 'solo') return ok({ error: 'Non disponible en solo' }, 400);
+      const now = Date.now();
+      const availableAt = (this.room.createdAt || now) + 90_000;
+      if (now < availableAt) {
+        return ok({
+          error: 'Indice disponible après 1m30',
+          secondsRemaining: Math.ceil((availableAt - now) / 1000),
+          hint: this.hintStatusFor(''),
+        }, 403);
+      }
+      if (this.room.hint?.revealed) {
+        return ok({ ok: true, revealed: true, hint: this.hintStatusFor('') });
+      }
+
+      const { username } = await req.json();
+      if (!username) return ok({ error: 'Pseudo requis' }, 400);
+
+      this.sanitizeActivePlayers();
+      if (!this.room.players.find(p => p.username === username)) {
+        this.room.players.push({ username, tries: 0, found: false, lastSeen: now });
+      }
+
+      if (!this.room.hint) {
+        this.room.hint = {
+          revealed: false,
+          revealedAt: null,
+          category: this.room.secretCategory || null,
+          proposal: null,
+        };
+      }
+
+      if (!this.room.hint.proposal) {
+        this.room.hint.proposal = {
+          id: crypto.randomUUID(),
+          proposer: username,
+          createdAt: now,
+          votesYes: [username],
+        };
+      } else if (!this.room.hint.proposal.votesYes.includes(username)) {
+        this.room.hint.proposal.votesYes.push(username);
+      }
+
+      const revealedNow = this.evaluateHintVotes();
+      this.room.lastActivity = now;
+      await this.save();
+      await this.updateActivity();
+      return ok({ ok: true, revealed: revealedNow, hint: this.hintStatusFor(username) });
     }
 
     // GET /secret

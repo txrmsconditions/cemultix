@@ -3,12 +3,26 @@ export { RoomDO };
 
 // ── Vocab cache ───────────────────────────────────────────────
 let vocabSet = null;
+let secretCategoryMap = null;
 async function getVocab(env) {
   if (!vocabSet) {
     const list = await env.KV.get('wordlist', 'json') || [];
     vocabSet = new Set(list);
   }
   return vocabSet;
+}
+
+async function getSecretCategoryMap(env) {
+  if (!secretCategoryMap) {
+    secretCategoryMap = await env.KV.get('secret_categories', 'json') || {};
+  }
+  return secretCategoryMap;
+}
+
+async function getSecretCategory(env, word) {
+  if (!word) return null;
+  const map = await getSecretCategoryMap(env);
+  return map[word] || null;
 }
 
 // ── CORS ──────────────────────────────────────────────────────
@@ -81,6 +95,12 @@ async function getDailyWord(env) {
     await env.KV.put(key, JSON.stringify(d), { expirationTtl: 172800 });
   }
   return d;
+}
+
+async function getDailyWordWithCategory(env) {
+  const d = await getDailyWord(env);
+  const category = await getSecretCategory(env, d.word);
+  return { ...d, category };
 }
 
 // ── Validation ────────────────────────────────────────────────
@@ -159,6 +179,16 @@ async function route(req, env, url, ip) {
     return json({ wordNumber: d.number, date: d.date });
   }
 
+  if (p === '/api/hint/solo' && m === 'GET') {
+    const d = await getDailyWordWithCategory(env);
+    return json({
+      available: true,
+      category: d.category || 'Catégorie inconnue',
+      date: d.date,
+      wordNumber: d.number,
+    });
+  }
+
   // POST /api/guess — solo, mot du jour, avec score D1
   if (p === '/api/guess' && m === 'POST') {
     if (rateLimit(ip)) return json({ error: 'Trop de requêtes' }, 429);
@@ -201,6 +231,7 @@ async function route(req, env, url, ip) {
     const code = Array.from(crypto.getRandomValues(new Uint8Array(4)))
       .map(b => 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'[b % 32]).join('');
     const secret = await getRandomWord(env);
+    const secretCategory = await getSecretCategory(env, secret);
     const r = await roomStub(env, code).fetch(new Request('http://do/init', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -210,6 +241,7 @@ async function route(req, env, url, ip) {
         mode,
         showOtherWords: mode === 'race' ? !!showOtherWords : true,
         secret,
+        secretCategory,
         wordNumber: 0,
       }),
     }));
@@ -266,6 +298,17 @@ async function route(req, env, url, ip) {
       body: JSON.stringify({ word: clean, username, ...result }),
     }));
     return json(result);
+  }
+
+  const hintM = p.match(/^\/api\/room\/([A-Z0-9]{4,8})\/hint\/propose$/);
+  if (hintM && m === 'POST') {
+    const username = sanitize((await req.json()).username);
+    if (!username) return json({ error: 'Pseudo requis' }, 400);
+    const r = await roomStub(env, hintM[1]).fetch(new Request('http://do/hint/propose', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username }),
+    }));
+    return json(await r.json(), r.status);
   }
 
   if (p === '/api/leaderboard' && m === 'GET') {

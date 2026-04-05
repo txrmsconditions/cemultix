@@ -42,16 +42,33 @@ def load_model(path):
     return model
 
 
+def normalize_category(raw):
+    txt = (raw or '').strip().replace('─', ' ')
+    txt = txt.strip('- ').strip()
+    return txt or 'Général'
+
+
 def load_secrets(path):
     words = []
+    categories = {}
+    current_category = 'Général'
     with open(path, encoding='utf-8-sig') as f:
         for line in f:
             w = line.strip().lower().replace('\r', '')
-            if w and not w.startswith('#') and 3 <= len(w) <= 25 and w not in STOPWORDS:
+            if not w:
+                continue
+            if w.startswith('#'):
+                title = w.lstrip('#').strip()
+                if title:
+                    current_category = normalize_category(title)
+                continue
+            if 3 <= len(w) <= 25 and w not in STOPWORDS:
                 words.append(w)
+                if w not in categories:
+                    categories[w] = current_category
     words = list(dict.fromkeys(words))
     print(f"{len(words)} mots secrets chargés")
-    return words
+    return words, categories
 
 
 def compute(model, secrets, top_n):
@@ -68,7 +85,7 @@ def compute(model, secrets, top_n):
     return results
 
 
-def save(results, model, out):
+def save(results, model, out, categories):
     out = Path(out)
     (out / 'bulk').mkdir(parents=True, exist_ok=True)
 
@@ -78,6 +95,12 @@ def save(results, model, out):
     (out / 'secrets.json').write_text(
         json.dumps(secrets_list, ensure_ascii=False), encoding='utf-8')
     print(f"  secrets.json  : {len(secrets_list)} mots secrets")
+
+    # ── secret_categories.json ─────────────────────────────
+    cat_map = {w: categories.get(w, 'Général') for w in secrets_list}
+    (out / 'secret_categories.json').write_text(
+        json.dumps(cat_map, ensure_ascii=False), encoding='utf-8')
+    print(f"  secret_categories.json : {len(cat_map)} catégories")
 
     # ── wordlist.json — tous les mots du modèle filtrés ──────
     # Un seul fichier KV → un seul upload → validation rapide côté Worker
@@ -109,12 +132,13 @@ def save(results, model, out):
     print(f"\n✓ Terminé → {out}/")
     print(f"\nUpload KV local (depuis worker/) :")
     print(f'  1. wrangler kv key put --local --binding=KV "secrets"  --path="..\pipeline\{out.name}\secrets.json"')
-    print(f'  2. wrangler kv key put --local --binding=KV "wordlist" --path="..\pipeline\{out.name}\wordlist.json"')
-    print(f'  3. $dir="..\pipeline\{out.name}\\bulk"')
+    print(f'  2. wrangler kv key put --local --binding=KV "secret_categories" --path="..\pipeline\{out.name}\secret_categories.json"')
+    print(f'  3. wrangler kv key put --local --binding=KV "wordlist" --path="..\pipeline\{out.name}\wordlist.json"')
+    print(f'  4. $dir="..\pipeline\{out.name}\\bulk"')
     print(f'     Get-ChildItem $dir -Filter "bulk_*.json" | ForEach-Object {{')
     print(f'         wrangler kv bulk put --local --binding=KV $_.FullName')
     print(f'     }}')
-    print(f'  4. Mot du jour :')
+    print(f'  5. Mot du jour :')
     print(f'     $d=(Get-Date -Format "yyyy-MM-dd")')
     print(f'     wrangler kv key put --local --binding=KV "daily:$d" (\'{{\"word\":\"maison\",\"date\":\"\'+$d+\'\",\"number\":1}}\')')
 
@@ -133,9 +157,9 @@ def main():
         sys.exit(1)
 
     model   = load_model(args.model)
-    secrets = load_secrets(args.secrets)
+    secrets, categories = load_secrets(args.secrets)
     results = compute(model, secrets, args.top_n)
-    save(results, model, args.out)
+    save(results, model, args.out, categories)
 
 
 if __name__ == '__main__':
