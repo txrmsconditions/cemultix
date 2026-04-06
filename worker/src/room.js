@@ -4,6 +4,11 @@ export class RoomDO {
     this.room = null;
   }
 
+  requiredHintVotes(totalPlayers) {
+    // Plus de 2/3 des joueurs doivent voter oui.
+    return Math.floor((Math.max(1, totalPlayers) * 2) / 3) + 1;
+  }
+
   sanitizeActivePlayers() {
     if (!this.room) return;
     this.room.players = this.room.players.filter(
@@ -25,7 +30,7 @@ export class RoomDO {
     };
     if (hint.proposal && !hint.revealed) {
       const totalPlayers = Math.max(1, (this.room?.players || []).length);
-      const needed = Math.ceil(totalPlayers * 0.51);
+      const needed = this.requiredHintVotes(totalPlayers);
       const votesYes = Array.isArray(hint.proposal.votesYes) ? hint.proposal.votesYes : [];
       status.proposal = {
         id: hint.proposal.id,
@@ -46,7 +51,7 @@ export class RoomDO {
     this.sanitizeActivePlayers();
     const totalPlayers = Math.max(1, this.room.players.length);
     const votesYes = Array.isArray(proposal.votesYes) ? proposal.votesYes.length : 0;
-    const needed = Math.ceil(totalPlayers * 0.51);
+    const needed = this.requiredHintVotes(totalPlayers);
     if (votesYes >= needed) {
       this.room.hint.revealed = true;
       this.room.hint.revealedAt = Date.now();
