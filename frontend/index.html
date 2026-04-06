@@ -162,12 +162,12 @@ main{
 .errmsg{font-size:.7rem;color:var(--hot);min-height:1em;margin-bottom:6px;flex-shrink:0}
 .hud{display:flex;gap:8px;align-items:stretch;margin-bottom:10px;flex-shrink:0}
 .timer-box{
-  min-width:112px;display:flex;flex-direction:column;justify-content:center;
+  min-width:96px;display:flex;flex-direction:column;justify-content:center;
   background:linear-gradient(140deg,#16140f,#1d1a12);
   border:1px solid #3d3220;border-radius:var(--r);padding:8px 10px;
 }
 .timer-l{font-size:.56rem;color:#bca36b;text-transform:uppercase;letter-spacing:.12em}
-.timer-v{font-size:1.06rem;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
+.timer-v{font-size:.95rem;color:var(--gold);font-variant-numeric:tabular-nums;line-height:1.1;margin-top:2px}
 .hint-box{
   flex:1;display:flex;flex-direction:column;gap:4px;
   background:linear-gradient(140deg,#13161a,#111417);
@@ -183,8 +183,8 @@ main{
 }
 .hint-btn:hover{border-color:#5d87aa;color:#e8f5ff}
 .hint-btn:disabled{opacity:.5;cursor:default}
-.hint-c{font-size:.74rem;color:var(--gold);min-height:1.2em;line-height:1.35}
-.hint-note{font-size:.61rem;color:var(--dm);line-height:1.35;min-height:1.2em}
+.hint-c{font-size:.74rem;color:var(--gold);line-height:1.35;display:none}
+.hint-note{font-size:.61rem;color:var(--dm);line-height:1.35;display:none}
 @media(max-width:720px){
   .hud{flex-direction:column}
   .timer-box{min-width:0}
@@ -653,12 +653,18 @@ function updateHintUi(){
   const hintLabel=S.hint.category?`Catégorie : ${S.hint.category}`:'Indice révélé';
 
   cat.textContent='';
+  cat.style.display='none';
+  note.style.display='none';
 
   if(S.mode==='solo'){
     note.textContent='';
     if(S.hint.revealed){
       status.textContent='Indice affiché';
       btn.textContent=hintLabel;
+      if(S.hint.category){
+        cat.textContent=hintLabel;
+        cat.style.display='block';
+      }
       btn.disabled=true;
       return;
     }
@@ -675,10 +681,15 @@ function updateHintUi(){
   }
 
   note.textContent='En multi: plus de 2/3 des joueurs doivent accepter l\'indice.';
+  note.style.display='block';
 
   if(S.hint.revealed){
     status.textContent='Indice révélé pour la salle';
     btn.textContent=hintLabel;
+    if(S.hint.category){
+      cat.textContent=hintLabel;
+      cat.style.display='block';
+    }
     btn.disabled=true;
     return;
   }
