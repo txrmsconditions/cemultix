@@ -128,6 +128,11 @@ footer{
   max-width:1020px;width:100%;padding:0 16px;
   min-height:0;overflow:hidden;
 }
+@media(min-width:721px){
+  #game.solo-layout{grid-template-columns:minmax(0,760px);max-width:760px;justify-content:center}
+  #game.solo-layout main{padding:20px 0;border-right:none}
+  #game.solo-layout .sidebar{display:none}
+}
 @media(max-width:720px){
   #game{grid-template-columns:1fr;overflow:auto;padding:0 12px}
   .sidebar{display:none!important}
@@ -245,6 +250,11 @@ tbody td{padding:7px 7px}
 .hmod h2{font-family:var(--serif);font-size:1.25rem;font-weight:600;margin-bottom:14px;color:var(--gold)}
 .hmod p{font-size:.72rem;color:var(--mt);line-height:1.75;margin-bottom:10px}
 .hmod p strong{color:var(--tx)}
+.cmod{background:linear-gradient(155deg,#16140f,#13161a);border:1px solid #3a3426;border-radius:12px;padding:20px;max-width:420px;width:100%;animation:mIn .24s ease}
+.cmod h3{font-family:var(--serif);font-size:1.15rem;color:var(--gold);margin-bottom:8px}
+.cmod p{font-size:.73rem;color:#b9b9ad;line-height:1.6;margin-bottom:14px}
+.cact{display:flex;gap:8px;justify-content:flex-end}
+.cact .btn,.cact .btn2{width:auto;min-width:110px}
 .tchips{display:flex;gap:5px;flex-wrap:wrap;margin:10px 0}
 .tc{padding:3px 8px;border-radius:20px;font-size:.64rem;font-weight:500}
 .cbtn{background:none;border:1px solid var(--bd);border-radius:5px;padding:6px 13px;color:var(--mt);cursor:pointer;font-family:var(--mono);font-size:.72rem;margin-top:5px;transition:all .15s}
@@ -348,7 +358,7 @@ tbody td{padding:7px 7px}
     </div>
     <div class="stats">
       <div class="stb"><div class="stl">Essais</div><div class="stv" id="stries">0</div></div>
-      <div class="stb"><div class="stl">Meilleur rang</div><div class="stv" id="stbest">—</div></div>
+      <div class="stb"><div class="stl">Meilleur score</div><div class="stv" id="stbest">—</div></div>
       <div class="stb"><div class="stl">Joueurs</div><div class="stv" id="stpl">1</div></div>
     </div>
     <div class="ginput">
@@ -470,6 +480,17 @@ tbody td{padding:7px 7px}
   </div>
 </div>
 
+<div class="ov" id="hint-confirm-ov" onclick="if(event.target===this)closeHintConfirm(false)">
+  <div class="cmod" role="dialog" aria-modal="true" aria-labelledby="hint-confirm-title">
+    <h3 id="hint-confirm-title">Révéler un indice ?</h3>
+    <p>Tu vas afficher la catégorie du mot secret. Cette action est irréversible pour la partie en cours.</p>
+    <div class="cact">
+      <button class="btn2" type="button" onclick="closeHintConfirm(false)">Annuler</button>
+      <button class="btn" type="button" onclick="closeHintConfirm(true)">Révéler l'indice</button>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
 <script>
@@ -493,7 +514,7 @@ const API = window.location.hostname === 'localhost' || window.location.hostname
 /* ── STATE ───────────────────────────────────────────────────── */
 const S = {
   mode:'race', room:null, user:null,
-  guesses:[], tries:0, bestRank:null, found:false,
+  guesses:[], tries:0, bestRank:null, bestProx:null, found:false,
   players:[], wnum:null,
   showOtherWords:true,
   lastPollTs:0, pollTimer:null, hbTimer:null,
@@ -625,13 +646,14 @@ function updateHintUi(){
   const availAt=S.hint.availableAt||(S.gameStartedAt?S.gameStartedAt+HINT_DELAY_MS:null);
   const remaining=availAt?Math.max(0,Math.ceil((availAt-Date.now())/1000)):90;
   const ready=remaining<=0;
+  const hintLabel=S.hint.category?`Catégorie : ${S.hint.category}`:'Indice révélé';
 
-  cat.textContent=S.hint.revealed&&S.hint.category?`Catégorie : ${S.hint.category}`:'';
+  cat.textContent='';
 
   if(S.mode==='solo'){
     if(S.hint.revealed){
       status.textContent='Indice affiché';
-      btn.textContent='Indice révélé';
+      btn.textContent=hintLabel;
       btn.disabled=true;
       return;
     }
@@ -649,7 +671,7 @@ function updateHintUi(){
 
   if(S.hint.revealed){
     status.textContent='Indice révélé pour la salle';
-    btn.textContent='Indice révélé';
+    btn.textContent=hintLabel;
     btn.disabled=true;
     return;
   }
@@ -678,12 +700,29 @@ function updateHintUi(){
   btn.disabled=!!S.hint.loading;
 }
 
+let hintConfirmResolver=null;
+function askHintConfirm(){
+  return new Promise(resolve=>{
+    hintConfirmResolver=resolve;
+    document.getElementById('hint-confirm-ov').classList.add('show');
+  });
+}
+function closeHintConfirm(ok){
+  const ov=document.getElementById('hint-confirm-ov');
+  ov.classList.remove('show');
+  if(hintConfirmResolver){
+    const resolver=hintConfirmResolver;
+    hintConfirmResolver=null;
+    resolver(!!ok);
+  }
+}
+
 async function onHintAction(){
   if(S.mode==='solo'){
     const availAt=S.hint.availableAt||(S.gameStartedAt+HINT_DELAY_MS);
     if(Date.now()<availAt){toast('Indice dispo après 1m30','err');return;}
     if(S.hint.revealed)return;
-    const ok=window.confirm('Tu es sûr ? Tu veux afficher la catégorie du mot secret ?');
+    const ok=await askHintConfirm();
     if(!ok)return;
     S.hint.loading=true;updateHintUi();
     try{
@@ -782,6 +821,7 @@ function enterGame(d){
   document.getElementById('invite-btn').style.display='';
   document.getElementById('feed-section').style.display='';
   document.getElementById('rcode').closest('.rbar').style.display='';
+  document.getElementById('game').classList.remove('solo-layout');
   S.showOtherWords=d.showOtherWords!==undefined?!!d.showOtherWords:true;
   S.lastWinnerEventTs=0;
   S.hint={availableAt:null,revealed:false,category:null,proposal:null,loading:false};
@@ -803,6 +843,7 @@ async function initSolo(){
   document.getElementById('stpl').textContent='1';
   document.getElementById('invite-btn').style.display='none';
   document.getElementById('feed-section').style.display='none';
+  document.getElementById('game').classList.add('solo-layout');
   S.hint={availableAt:null,revealed:false,category:null,proposal:null,loading:false};
   startGameClock(Date.now());
   applyHintState({availableAt:Date.now()+HINT_DELAY_MS,revealed:false,proposal:null});
@@ -842,6 +883,8 @@ async function pollState(){
       d.guesses.forEach(g=>{
         const mine=g.player===S.user;
         const key=g.word?`w:${g.word}`:`h:${g.player}:${g.ts||Math.random()}`;
+        const hasMaskedWord=!g.word||/^\*+$/.test(g.word);
+        if(S.mode==='race'&&mine&&hasMaskedWord)return;
         const displayWord=g.word||maskedWord(g.wordLength);
         if(S.mode==='coop'||!mine)addRow(displayWord,g.rank,g.proximity,mine,g.player,g.found||false,{hidden:!!g.hidden,key});
         addFeed(displayWord,g.rank,g.proximity,g.player,false);
@@ -873,8 +916,11 @@ async function guess(){
     S.tries++;document.getElementById('stries').textContent=S.tries;inp.value='';
     const{rank,proximity,found}=d;
     if(S.mode!=='coop')addRow(w,rank,proximity,true,S.user,found);
-    if(S.bestRank===null||(rank&&rank<S.bestRank)){
-      S.bestRank=rank;document.getElementById('stbest').textContent=rank?`${rank}‰`:'—';
+    if(S.mode==='race')addFeed(w,rank,proximity,S.user,found);
+    if(S.bestProx===null||proximity>S.bestProx){
+      S.bestProx=proximity;
+      S.bestRank=rank||null;
+      document.getElementById('stbest').textContent=fmtScore(S.bestRank,S.bestProx);
     }
     if(found){
       S.found=true;
@@ -1015,11 +1061,13 @@ function goHome(){
   if(S.hbTimer)clearInterval(S.hbTimer);
   stopGameClock();
   S.room=null;S.user=null;S.guesses=[];S.tries=0;
-  S.bestRank=null;S.found=false;S.players=[];S.lastPollTs=0;
+  S.bestRank=null;S.bestProx=null;S.found=false;S.players=[];S.lastPollTs=0;
   S.lastWinnerEventTs=0;
   S.showOtherWords=true;
   S.gameStartedAt=null;
   S.hint={availableAt:null,revealed:false,category:null,proposal:null,loading:false};
+  document.getElementById('game').classList.remove('solo-layout');
+  closeHintConfirm(false);
   document.getElementById('game-wrap').style.display='none';
   document.getElementById('lobby-wrap').style.display='flex';
   document.getElementById('obadge').style.display='none';
